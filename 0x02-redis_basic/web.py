@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Caching request module
+Web cache and tracker using Redis.
 """
 import redis
 import requests
@@ -8,29 +8,55 @@ from functools import wraps
 from typing import Callable
 
 
-def track_get_page(fn: Callable) -> Callable:
-    """ Decorator for get_page
+redis_client = redis.Redis()
+"""The Radis instance of the module"""
+
+
+def cache_page(method: Callable) -> Callable:
     """
-    @wraps(fn)
-    def wrapper(url: str) -> str:
-        """ Wrapper that:
-            - check whether a url's data is cached
-            - tracks how many times get_page is called
+    Decorator to cache the results of a method based on the URL.
+
+    Args:
+        method (Callable): The method to cache.
+
+    Returns:
+        Callable: The wrapped function with caching behavior.
+    """
+    @wraps(method)
+    def invoker(url) -> str:
         """
-        client = redis.Redis()
-        client.incr(f'count:{url}')
-        cached_page = client.get(f'{url}')
-        if cached_page:
-            return cached_page.decode('utf-8')
-        response = fn(url)
-        client.set(f'{url}', response, 10)
-        return response
-    return wrapper
+        Invokes the method and caches the result.
+
+        Args:
+            url (str): The URL to fetch.
+
+        Returns:
+            str: The HTML content of the page.
+        """
+        redis_client.incr(f'count:{url}')
+
+        cached_result = redis_client.get(f'result:{url}')
+        if cached_result:
+            return cached_result.decode('utf-8')
+
+        result = method(url)
+
+        redis_client.set(f'count:{url}', 0)
+        redis_client.setex(f'result:{url}', 10, result)
+        return result
+
+    return invoker
 
 
-@track_get_page
+@cache_page
 def get_page(url: str) -> str:
-    """ Makes a http request to a given endpoint
     """
-    response = requests.get(url)
-    return response.text
+    Fetches the HTML content of a given URL.
+
+    Args:
+        url (str): The URL of the page to retrieve.
+
+    Returns:
+        str: The HTML content of the page.
+    """
+    return requests.get(url).text
