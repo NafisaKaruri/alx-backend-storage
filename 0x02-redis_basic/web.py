@@ -9,6 +9,7 @@ from typing import Callable
 
 
 redis_client = redis.Redis()
+"""The Radis instance of the module"""
 
 
 def cache_page(method: Callable) -> Callable:
@@ -22,7 +23,7 @@ def cache_page(method: Callable) -> Callable:
         Callable: The wrapped function with caching behavior.
     """
     @wraps(method)
-    def invoker(url: str) -> str:
+    def invoker(url) -> str:
         """
         Invokes the method and caches the result.
 
@@ -40,6 +41,7 @@ def cache_page(method: Callable) -> Callable:
 
         result = method(url)
 
+        redis_client.set(f'count:{url}', 0)
         redis_client.setex(f'result:{url}', 10, result)
         return result
 
