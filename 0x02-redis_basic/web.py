@@ -7,10 +7,8 @@ import requests
 from functools import wraps
 from typing import Callable
 
-
 redis_client = redis.Redis()
-"""The Radis instance of the module"""
-
+"""The Redis instance of the module"""
 
 def cache_page(method: Callable) -> Callable:
     """
@@ -33,19 +31,21 @@ def cache_page(method: Callable) -> Callable:
         Returns:
             str: The HTML content of the page.
         """
+        # Increment the count for each call
         redis_client.incr(f'count:{url}')
 
-        cached_result = redis_client.get(f'{url}')
+        cached_result = redis_client.get(f'result:{url}')
         if cached_result:
             return cached_result.decode('utf-8')
 
+        # Fetch the page content
         result = method(url)
 
-        redis_client.set(f'{url}', 10)
+        # Cache the result with expiration
+        redis_client.setex(f'result:{url}', 10, result)
         return result
 
     return invoker
-
 
 @cache_page
 def get_page(url: str) -> str:
