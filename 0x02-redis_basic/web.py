@@ -10,6 +10,7 @@ from typing import Callable
 redis_client = redis.Redis()
 """The Redis instance of the module"""
 
+
 def cache_page(method: Callable) -> Callable:
     """
     Decorator to cache the results of a method based on the URL.
@@ -46,6 +47,7 @@ def cache_page(method: Callable) -> Callable:
         return result
 
     return invoker
+
 
 @cache_page
 def get_page(url: str) -> str:
