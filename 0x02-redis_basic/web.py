@@ -22,7 +22,7 @@ def cache_page(method: Callable) -> Callable:
         Callable: The wrapped function with caching behavior.
     """
     @wraps(method)
-    def invoker(url) -> str:
+    def invoker(url: str) -> str:
         """
         Invokes the method and caches the result.
 
@@ -30,23 +30,22 @@ def cache_page(method: Callable) -> Callable:
             url (str): The URL to fetch.
 
         Returns:
-            str: The HTML content of the page or a message.
+            str: The HTML content of the page.
         """
         # Increment the count for each call
         redis_client.incr(f'count:{url}')
 
+        # Attempt to retrieve the cached result
         cached_result = redis_client.get(f'result:{url}')
         if cached_result:
             return cached_result.decode('utf-8')
 
-        # Fetch the page content
-        try:
-            result = method(url)
-            # Cache the result with expiration
-            redis_client.setex(f'result:{url}', 10, result)
-            return "OK"  # Return OK when fetched and cached
-        except Exception as e:
-            return "Error fetching page"  # Handle errors gracefully
+        # Fetch the page content if not cached
+        result = method(url)
+
+        # Cache the result with an expiration of 10 seconds
+        redis_client.setex(f'result:{url}', 10, result)
+        return result
 
     return invoker
 
@@ -63,5 +62,5 @@ def get_page(url: str) -> str:
         str: The HTML content of the page.
     """
     response = requests.get(url)
-    response.raise_for_status()  # Raise an error for bad responses
+    response.raise_for_status()  # Ensure we raise an error for bad responses
     return response.text
