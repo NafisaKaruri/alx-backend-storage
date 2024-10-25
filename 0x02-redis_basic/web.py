@@ -30,7 +30,7 @@ def cache_page(method: Callable) -> Callable:
             url (str): The URL to fetch.
 
         Returns:
-            str: The HTML content of the page.
+            str: The HTML content of the page or a message.
         """
         # Increment the count for each call
         redis_client.incr(f'count:{url}')
@@ -40,11 +40,13 @@ def cache_page(method: Callable) -> Callable:
             return cached_result.decode('utf-8')
 
         # Fetch the page content
-        result = method(url)
-
-        # Cache the result with expiration
-        redis_client.setex(f'result:{url}', 10, result)
-        return result
+        try:
+            result = method(url)
+            # Cache the result with expiration
+            redis_client.setex(f'result:{url}', 10, result)
+            return "OK"  # Return OK when fetched and cached
+        except Exception as e:
+            return "Error fetching page"  # Handle errors gracefully
 
     return invoker
 
@@ -60,4 +62,6 @@ def get_page(url: str) -> str:
     Returns:
         str: The HTML content of the page.
     """
-    return requests.get(url).text
+    response = requests.get(url)
+    response.raise_for_status()  # Raise an error for bad responses
+    return response.text
